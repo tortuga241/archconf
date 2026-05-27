@@ -4,8 +4,9 @@
 -- #######################################################################################
 
 -- Autostart
-hl.exec_once("gnome-keyring-daemon --start --components=secrets")
-
+hl.on("hyprland.start", function()
+    hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
+end)
 --------------------
 ---- MONITORS ----
 --------------------
