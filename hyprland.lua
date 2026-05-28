@@ -4,8 +4,14 @@
 -- #######################################################################################
 
 -- Autostart
+-- hl.on("hyprland.start", function()
+--     hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
+-- end)
+--
+-- Background img
 hl.on("hyprland.start", function()
-    hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
+    hl.exec_cmd("awww-daemon")
+    hl.exec_cmd("sleep 1 && awww img ~/Pictures/japancars.jpg")
 end)
 --------------------
 ---- MONITORS ----
@@ -21,8 +27,8 @@ hl.monitor({
 ---------------------
 ---- MY PROGRAMS ----
 ---------------------
-local terminal    = "wezterm"
-local fileManager = "dolphin"
+local terminal    = "kitty"
+local fileManager = "yazi"
 local menu        = "wofi --show drun"
 
 -------------------
