@@ -6,23 +6,41 @@ vim.g.maplocalleader = " "
 
 vim.opt.number = true
 vim.opt.relativenumber = true
+vim.opt.clipboard = "unnamedplus"
+vim.opt.ignorecase = true
+vim.opt.smartcase = true
+vim.opt.splitright = true
+vim.opt.splitbelow = true
+vim.opt.cursorline = true
+vim.opt.termguicolors = true
 
--- Внимание: Автоматическое форматирование убрано отсюда, 
--- так как теперь за него отвечает плагин conform.nvim (см. ниже).
+vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>")
+
+vim.g.clipboard = {
+  name = 'OSC 52',
+  copy = {
+    ['+'] = require('vim.ui.clipboard.osc52').copy('+'),
+    ['*'] = require('vim.ui.clipboard.osc52').copy('*'),
+  },
+  paste = {
+    ['+'] = require('vim.ui.clipboard.osc52').paste('+'),
+    ['*'] = require('vim.ui.clipboard.osc52').paste('*'),
+  },
+}
 
 -- ========================================================================== --
 -- 2. АВТОМАТИЧЕСКАЯ УСТАНОВКА МЕНЕДЖЕРА ПЛАГИНОВ (lazy.nvim)
 -- ========================================================================== --
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system({
-    "git",
-    "clone",
-    "--filter=blob:none",
-    "https://github.com/folke/lazy.nvim.git",
-    "--branch=stable", 
-    lazypath,
-  })
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+  vim.fn.system({
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git",
+    "--branch=stable",
+    lazypath,
+  })
 end
 vim.opt.rtp:prepend(lazypath)
 
@@ -30,199 +48,263 @@ vim.opt.rtp:prepend(lazypath)
 -- 3. УСТАНОВКА И НАСТРОЙКА ПЛАГИНОВ
 -- ========================================================================== --
 require("lazy").setup({
-  -- [ПЛАГИН 1] ТЕЛЕСКОП (Поиск файлов и текста)
-  {
-    'nvim-telescope/telescope.nvim',
-    tag = '0.1.8',
-    dependencies = { 'nvim-lua/plenary.nvim' },
-    config = function()
-      local telescope = require('telescope')
-      
-      telescope.setup({
-        defaults = {
-          file_ignore_patterns = { "node_modules", ".git/", ".next/" },
-          vimgrep_arguments = {
-            'rg', '--color=never', '--no-heading', '--with-filename',
-            '--line-number', '--column', '--smart-case', '--hidden'
-          },
-        }
-      })
 
-      local builtin = require('telescope.builtin')
-      vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = 'Telescope Find Files' })
-      vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = 'Telescope Live Grep' })
-      vim.keymap.set('n', '<leader>fb', builtin.buffers, { desc = 'Telescope Buffers' })
-      vim.keymap.set('n', '<leader>fh', builtin.help_tags, { desc = 'Telescope Help Tags' })
-    end
-  },
+  -- ── ТЕМА ─────────────────────────────────────────────────────────────────
+  {
+    "ellisonleao/gruvbox.nvim",
+    priority = 1000,
+    config = function()
+      require("gruvbox").setup({ transparent_mode = true })
+      vim.cmd("colorscheme gruvbox")
+    end,
+  },
 
-  -- [ПЛАГИН 2] LSP CONFIG (Связь с серверами) + ИНТЕГРАЦИЯ BLINK
-  {
-    'neovim/nvim-lspconfig',
-    dependencies = { 'saghen/blink.cmp' }, -- Зависимость от blink для capabilities
-    config = function()
-      -- Передаем возможности автодополнения (capabilities) от blink.cmp в LSP
-      local blink_capabilities = require('blink.cmp').get_lsp_capabilities()
-      
-      -- В Neovim 0.11+ используем vim.lsp.config для инъекции capabilities
-      -- Если в будущем перейдете на 'ts_ls', просто поменяйте 'vtsls' здесь
-      vim.lsp.config('vtsls', { capabilities = blink_capabilities })
-      vim.lsp.config('biome', { capabilities = blink_capabilities })
+  -- ── СТРОКА СОСТОЯНИЯ ─────────────────────────────────────────────────────
+  {
+    "nvim-lualine/lualine.nvim",
+    dependencies = { "nvim-tree/nvim-web-devicons" },
+    opts = {
+      options = { theme = "gruvbox", globalstatus = true },
+    },
+  },
 
-      -- Включаем серверы
-      vim.lsp.enable('vtsls')
-      vim.lsp.enable('biome')
+  -- ── UI ───────────────────────────────────────────────────────────────────
+  {
+    "folke/noice.nvim",
+    event = "VeryLazy",
+    dependencies = {
+      "MunifTanjim/nui.nvim",
+      "rcarriga/nvim-notify",
+    },
+    opts = {
+      lsp = {
+        override = {
+          ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
+          ["vim.lsp.util.stylize_markdown"] = true,
+          ["cmp.entry.get_documentation"] = true,
+        },
+      },
+      presets = {
+        bottom_search = true,
+        command_palette = true,
+        long_message_to_split = true,
+      },
+    },
+  },
+  {
+    "folke/snacks.nvim",
+    priority = 1000,
+    lazy = false,
+    opts = {
+      bigfile = { enabled = true },
+      dashboard = { enabled = true },
+      notifier = { enabled = true },
+      quickfile = { enabled = true },
+      statuscolumn = { enabled = true },
+      words = { enabled = true },
+    },
+  },
 
-      -- Горячие клавиши для работы с кодом (LSP)
-      vim.keymap.set('n', 'gd', vim.lsp.buf.definition, { desc = 'LSP Go to Definition' })
-      vim.keymap.set('n', 'K', vim.lsp.buf.hover, { desc = 'LSP Hover Docs' })
-      vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, { desc = 'LSP Code Action' })
-      vim.keymap.set('n', '<leader>cr', vim.lsp.buf.rename, { desc = 'LSP Rename' })
-    end
-  },
+  -- ── ПОИСК ────────────────────────────────────────────────────────────────
+  {
+    "nvim-telescope/telescope.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      require("telescope").setup({
+        defaults = {
+          file_ignore_patterns = { "node_modules", ".git/", ".next/" },
+          vimgrep_arguments = {
+            "rg", "--color=never", "--no-heading", "--with-filename",
+            "--line-number", "--column", "--smart-case", "--hidden",
+          },
+        },
+      })
 
-  -- [ПЛАГИН 3] OIL.NVIM (Файловый менеджер в виде текстового буфера)
-  {
-    'stevearc/oil.nvim',
-    dependencies = { { "nvim-tree/nvim-web-devicons", opts = {} } },
-    config = function()
-      require("oil").setup({
-        default_file_explorer = true,
-        columns = { "icons" },
-        view_options = {
-          show_hidden = true,
-          is_always_hidden = function(name, bufnr) return name == ".." or name == "." end,
-        },
-      })
-      vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory in Oil" })
-    end
-  },
+      local builtin = require("telescope.builtin")
+      vim.keymap.set("n", "<leader>ff", builtin.find_files,  { desc = "Telescope Find Files" })
+      vim.keymap.set("n", "<leader>fg", builtin.live_grep,   { desc = "Telescope Live Grep" })
+      vim.keymap.set("n", "<leader>sg", builtin.live_grep,   { desc = "Telescope Live Grep (alt)" })
+      vim.keymap.set("n", "<leader>fb", builtin.buffers,     { desc = "Telescope Buffers" })
+      vim.keymap.set("n", "<leader>fh", builtin.help_tags,   { desc = "Telescope Help Tags" })
+    end,
+  },
 
-  -- [ПЛАГИН 4] LAZYGIT.NVIM
-  {
-    "kdheepak/lazygit.nvim",
-    cmd = { "LazyGit", "LazyGitCurrentFile" },
-    dependencies = { "nvim-lua/plenary.nvim" },
-    keys = {
-      { "<leader>gg", "<cmd>LazyGit<cr>", desc = "Toggle LazyGit" },
-    },
-  },
+  -- ── ФАЙЛОВЫЙ МЕНЕДЖЕР ────────────────────────────────────────────────────
+  {
+    "stevearc/oil.nvim",
+    dependencies = { { "nvim-tree/nvim-web-devicons", opts = {} } },
+    config = function()
+      require("oil").setup({
+        default_file_explorer = true,
+        columns = { "icon" },
+        view_options = {
+          show_hidden = true,
+          is_always_hidden = function(name) return name == ".." or name == "." end,
+        },
+      })
+      vim.keymap.set("n", "-", "<CMD>Oil<CR>", { desc = "Open parent directory in Oil" })
+    end,
+  },
 
-  -- ========================================================================
-  -- НОВЫЕ ПЛАГИНЫ
-  -- ========================================================================
+  -- ── ПОДСКАЗКИ КЛАВИШ ─────────────────────────────────────────────────────
+  {
+    "folke/which-key.nvim",
+    event = "VeryLazy",
+    opts = {},
+  },
 
-  -- [ПЛАГИН 5] BLINK.CMP (Молниеносное автодополнение)
-  {
-    'saghen/blink.cmp',
-    version = '*', -- Использовать скомпилированные бинарники
-    dependencies = { 'rafamadriz/friendly-snippets' },
-    opts = {
-      appearance = { 
-        use_nvim_cmp_as_default = true,
-        nerd_font_variant = 'mono',
-      },
-      signature = { enabled = true },
-      sources = { 
-        default = { 'lsp', 'path', 'snippets', 'buffer' } 
-      },
-    }
-  },
+  -- ── РАЗНОЕ ───────────────────────────────────────────────────────────────
+  { "ThePrimeagen/vim-be-good" },
+  {
+    "amitds1997/remote-nvim.nvim",
+    version = "*",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "MunifTanjim/nui.nvim",
+      "nvim-telescope/telescope.nvim",
+    },
+    config = true,
+  },
 
-  -- [ПЛАГИН 6] CONFORM.NVIM (Форматирование при сохранении)
-  {
-    'stevearc/conform.nvim',
-    event = { "BufWritePre" },
-    cmd = { "ConformInfo" },
-    opts = {
-      formatters_by_ft = {
-        javascript = { "biome" },
-        typescript = { "biome" },
-        javascriptreact = { "biome" },
-        typescriptreact = { "biome" },
-        json = { "biome" },
-      },
-      format_on_save = {
-        timeout_ms = 1000,
-        lsp_fallback = true,
-      },
-    },
-  },
+  -- ── GIT ──────────────────────────────────────────────────────────────────
+  {
+    "lewis6991/gitsigns.nvim",
+    config = function()
+      require("gitsigns").setup({ current_line_blame = true })
+      vim.keymap.set("n", "]h", "<cmd>Gitsigns next_hunk<CR>", { desc = "Next Git Hunk" })
+      vim.keymap.set("n", "[h", "<cmd>Gitsigns prev_hunk<CR>", { desc = "Prev Git Hunk" })
+    end,
+  },
+  {
+    "kdheepak/lazygit.nvim",
+    cmd = { "LazyGit", "LazyGitCurrentFile" },
+    dependencies = { "nvim-lua/plenary.nvim" },
+    keys = {
+      { "<leader>gg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
+    },
+  },
 
--- [ПЛАГИН 7] TREESITTER & AUTOTAG (Умный парсинг и автозакрытие тегов)
-  {
-    'nvim-treesitter/nvim-treesitter',
-    build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', 
-    opts = {
-      ensure_installed = { "lua", "typescript", "javascript", "tsx", "html", "css", "json" },
-      highlight = { 
-        enable = true,
-        additional_vim_regex_highlighting = false,
-      },
-    },
-  },
-  {
-    'windwp/nvim-ts-autotag',
-    opts = {},
-    -- Убрали зависимость, чтобы не создавать циклических ожиданий
-  },
+  -- ── TREESITTER ───────────────────────────────────────────────────────────
+  {
+    "nvim-treesitter/nvim-treesitter",
+    build = ":TSUpdate",
+    config = function()
+        require("nvim-treesitter").setup({
+            ensure_installed = { "lua", "vim", "vimdoc", "query", "javascript", "typescript" },
+            auto_install = true,
+            highlight = {
+                enable = true,
+                additional_vim_regex_highlighting = false,
+            },
+        })
+    end,
+  },
+  {
+    "windwp/nvim-ts-autotag",
+    event = { "BufReadPre", "BufNewFile" },
+    opts = {},
+  },
 
-  -- [ПЛАГИН 8] LUALINE (Строка состояния внизу)
-  {
-    'nvim-lualine/lualine.nvim',
-    dependencies = { 'nvim-tree/nvim-web-devicons' },
-    opts = {
-      options = { theme = 'auto', globalstatus = true },
-    }
-  },
+  -- ── ФОРМАТИРОВАНИЕ ───────────────────────────────────────────────────────
+  {
+    "stevearc/conform.nvim",
+    event = { "BufWritePre" },
+    cmd = { "ConformInfo" },
+    keys = {
+      {
+        "<leader>fm",
+        function() require("conform").format({ async = true, lsp_fallback = true }) end,
+        desc = "Format file",
+      },
+    },
+    opts = {
+      formatters_by_ft = {
+        javascript      = { "biome" },
+        typescript      = { "biome" },
+        javascriptreact = { "biome" },
+        typescriptreact = { "biome" },
+        json            = { "biome" },
+      },
+      format_on_save = {
+        timeout_ms = 1000,
+        lsp_fallback = true,
+      },
+    },
+  },
 
-  -- [ПЛАГИН 9] NOICE & NUI (Красивый UI для командной строки и сообщений)
-  { 
-    'folke/noice.nvim', 
-    event = "VeryLazy",
-    dependencies = { 'MunifTanjim/nui.nvim' },
-    opts = {
-      lsp = {
-        override = {
-          ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
-          ["vim.lsp.util.stylize_markdown"] = true,
-          ["cmp.entry.get_documentation"] = true,
-        },
-      },
-      presets = {
-        bottom_search = true,       
-        command_palette = true,     
-        long_message_to_split = true,
-      },
-    }
-  },
+  -- ── АВТОДОПОЛНЕНИЕ ───────────────────────────────────────────────────────
+  {
+    "saghen/blink.cmp",
+    version = "*",
+    dependencies = {
+      "rafamadriz/friendly-snippets",
+      "onsails/lspkind.nvim",
+    },
+    opts = {
+      keymap = {
+        preset = "default",
+        ["<Tab>"]   = { "select_next", "fallback" },
+        ["<S-Tab>"] = { "select_prev", "fallback" },
+        ["<CR>"]    = { "accept", "fallback" },
+      },
+      appearance = {
+        use_nvim_cmp_as_default = true,
+        nerd_font_variant = "mono",
+      },
+      signature = { enabled = true },
+      sources = {
+        default = { "lsp", "path", "snippets", "buffer" },
+        providers = {
+          path = {
+            enabled = function()
+              local line = vim.api.nvim_get_current_line()
+              return not string.match(line, "@/")
+            end,
+          },
+        },
+      },
+    },
+  },
 
-  -- [ПЛАГИН 10] TROUBLE (Панель для просмотра ошибок кода)
-  {
-    'folke/trouble.nvim',
-    cmd = "Trouble",
-    keys = {
-      { "<leader>xx", "<cmd>Trouble diagnostics toggle<cr>", desc = "Diagnostics (Trouble)" },
-    },
-    opts = {}
-  },
+  -- ── LSP ──────────────────────────────────────────────────────────────────
+  {
+    "neovim/nvim-lspconfig",
+    dependencies = { "saghen/blink.cmp" },
+    config = function()
+      local capabilities = require("blink.cmp").get_lsp_capabilities()
 
-  -- [ПЛАГИН 11] WHICH-KEY (Подсказки горячих клавиш)
-  {
-    'folke/which-key.nvim',
-    event = "VeryLazy",
-    opts = {}
-  },
+      -- Neovim 0.11+: vim.lsp.config / vim.lsp.enable
+      -- Для более старых версий можно заменить на lspconfig.vtsls.setup(...)
+      if vim.lsp.config then
+        vim.lsp.config("vtsls", { capabilities = capabilities })
+        vim.lsp.config("biome", { capabilities = capabilities })
+        vim.lsp.enable("vtsls")
+        vim.lsp.enable("biome")
+      else
+        local lspconfig = require("lspconfig")
+        lspconfig.vtsls.setup({ capabilities = capabilities })
+        lspconfig.biome.setup({ capabilities = capabilities })
+      end
 
-  -- [ПЛАГИН 12] SNACKS (Набор полезных компонентов: экран приветствия, уведомления и др.)
-  {
-    'folke/snacks.nvim',
-    priority = 1000,
-    lazy = false,
-    opts = {
-      dashboard = { enabled = true },
-      notifier = { enabled = true },
-    }
-  }
+      -- Диагностика
+      vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Open Diagnostics Float" })
+
+      -- LSP навигация и действия
+      vim.keymap.set("n", "gd",          vim.lsp.buf.definition,  { desc = "LSP Go to Definition" })
+      vim.keymap.set("n", "K",           vim.lsp.buf.hover,        { desc = "LSP Hover Docs" })
+      vim.keymap.set("n", "<leader>ca",  vim.lsp.buf.code_action,  { desc = "LSP Code Action" })
+      vim.keymap.set("n", "<leader>cr",  vim.lsp.buf.rename,       { desc = "LSP Rename" })
+    end,
+  },
+
+  -- ── ДИАГНОСТИКА ──────────────────────────────────────────────────────────
+  {
+    "folke/trouble.nvim",
+    cmd = "Trouble",
+    keys = {
+      { "<leader>xx", "<cmd>Trouble diagnostics toggle<cr>",              desc = "Diagnostics (Trouble)" },
+      { "<leader>xX", "<cmd>Trouble diagnostics toggle filter.buf=0<cr>", desc = "Buffer Diagnostics (Trouble)" },
+    },
+    opts = {},
+  },
 })
