@@ -269,33 +269,39 @@ require("lazy").setup({
   -- ── LSP ──────────────────────────────────────────────────────────────────
   {
     "neovim/nvim-lspconfig",
-    dependencies = { "saghen/blink.cmp" },
+    dependencies = { 
+      "saghen/blink.cmp",
+      -- 1. Добавляем сам Mason
+      "williamboman/mason.nvim",
+      -- 2. Добавляем мост между Mason и встроенным LSP
+      "williamboman/mason-lspconfig.nvim",
+    },
     config = function()
+      -- Вначале иницируем Mason
+      require("mason").setup()
+      require("mason-lspconfig").setup({
+          -- Список серверов, которые Mason установит автоматически
+          ensure_installed = { "vtsls", "biome" } 
+      })
+  
       local capabilities = require("blink.cmp").get_lsp_capabilities()
-
-      -- Neovim 0.11+: vim.lsp.config / vim.lsp.enable
-      -- Для более старых версий можно заменить на lspconfig.vtsls.setup(...)
-      if vim.lsp.config then
-        vim.lsp.config("vtsls", { capabilities = capabilities })
-        vim.lsp.config("biome", { capabilities = capabilities })
-        vim.lsp.enable("vtsls")
-        vim.lsp.enable("biome")
-      else
-        local lspconfig = require("lspconfig")
-        lspconfig.vtsls.setup({ capabilities = capabilities })
-        lspconfig.biome.setup({ capabilities = capabilities })
-      end
-
-      -- Диагностика
-      vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Open Diagnostics Float" })
-
-      -- LSP навигация и действия
-      vim.keymap.set("n", "gd",          vim.lsp.buf.definition,  { desc = "LSP Go to Definition" })
-      vim.keymap.set("n", "K",           vim.lsp.buf.hover,        { desc = "LSP Hover Docs" })
-      vim.keymap.set("n", "<leader>ca",  vim.lsp.buf.code_action,  { desc = "LSP Code Action" })
-      vim.keymap.set("n", "<leader>cr",  vim.lsp.buf.rename,       { desc = "LSP Rename" })
+  
+      -- Настройка сервисов установленных через Mason
+      require("mason-lspconfig").setup_handlers({
+          function(server_name)
+              -- Neovim 0.11+ нативный синтаксис
+              vim.lsp.config(server_name, {
+                  capabilities = capabilities
+              })
+              vim.lsp.enable(server_name)
+          end,
+      })
+  
+      -- Кастомные горячие клавиши (keymaps)
+      vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Open Diagnostics" })
+      vim.keymap.set({ "n", "v" }, "<leader>ca", vim.util or vim.lsp.buf.code_action, { desc = "Code Action" })
     end,
-  },
+  }
 
   -- ── ДИАГНОСТИКА ──────────────────────────────────────────────────────────
   {
