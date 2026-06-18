@@ -271,35 +271,35 @@ require("lazy").setup({
     "neovim/nvim-lspconfig",
     dependencies = { 
       "saghen/blink.cmp",
-      -- 1. Добавляем сам Mason
       "williamboman/mason.nvim",
-      -- 2. Добавляем мост между Mason и встроенным LSP
       "williamboman/mason-lspconfig.nvim",
     },
     config = function()
       -- Вначале иницируем Mason
       require("mason").setup()
-      require("mason-lspconfig").setup({
+      
+      local mason_lspconfig = require("mason-lspconfig")
+      mason_lspconfig.setup({
           -- Список серверов, которые Mason установит автоматически
           ensure_installed = { "vtsls", "biome" } 
       })
   
       local capabilities = require("blink.cmp").get_lsp_capabilities()
+      local util = require("lspconfig.util")
+      local root_dir = util.root_pattern("package.json", "tsconfig.json", "jsconfig.json", ".git")
   
-      -- Настройка сервисов установленных через Mason
-      require("mason-lspconfig").setup_handlers({
-          function(server_name)
-              -- Neovim 0.11+ нативный синтаксис
-              vim.lsp.config(server_name, {
-                  capabilities = capabilities
-              })
-              vim.lsp.enable(server_name)
-          end,
-      })
+      -- Замена setup_handlers на нативный обход установленных серверов
+      for _, server_name in ipairs(mason_lspconfig.get_installed_servers()) do
+          vim.lsp.config(server_name, {
+              capabilities = capabilities,
+              root_dir = root_dir, -- Возвращаем поиск корня, чтобы серверы видели компоненты
+          })
+          vim.lsp.enable(server_name)
+      end
   
       -- Кастомные горячие клавиши (keymaps)
       vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Open Diagnostics" })
-      vim.keymap.set({ "n", "v" }, "<leader>ca", vim.util or vim.lsp.buf.code_action, { desc = "Code Action" })
+      vim.keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, { desc = "Code Action" })
     end,
   },
 
