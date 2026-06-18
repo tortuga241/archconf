@@ -301,7 +301,7 @@ require("lazy").setup({
       vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { desc = "Open Diagnostics" })
       vim.keymap.set({ "n", "v" }, "<leader>ca", vim.util or vim.lsp.buf.code_action, { desc = "Code Action" })
     end,
-  }
+  },
 
   -- ── ДИАГНОСТИКА ──────────────────────────────────────────────────────────
   {
